@@ -81,7 +81,6 @@ internal class Connection
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("cancel by server...");
                 break;
             }
             catch (SocketException)
@@ -115,7 +114,6 @@ internal class Connection
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("cancel by server...");
                 break;
             }
         }
