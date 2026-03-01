@@ -2,12 +2,13 @@
 
 using System.Text;
 using System.Net.Sockets;
+using System.IO.Pipelines;
 
 internal class Connection
 {
     private Socket _socket;
-    private SocketAsyncEventArgs _recvArgs;
     private SocketAsyncEventArgs _sendArgs;
+    private Pipe _pipe;
 
     private IConnectionHandler _connectionHandler;
 
@@ -15,14 +16,12 @@ internal class Connection
     {
         _socket = null!;
 
-        _recvArgs = new SocketAsyncEventArgs();
-        _recvArgs.SetBuffer(new Byte[128], 0, 128);
-        _recvArgs.Completed += OnReceived;
-
         _sendArgs = new SocketAsyncEventArgs();
         _sendArgs.Completed += OnSent;
 
         _connectionHandler = null!;
+
+        _pipe = new Pipe();
     }
 
     internal void Initialize(Socket socket, IConnectionHandler handler)
@@ -31,21 +30,15 @@ internal class Connection
         _connectionHandler = handler ?? throw new ArgumentNullException(nameof(handler));
     }
 
-    internal void Run()
+    internal async Task Run()
     {
         _connectionHandler.OnConnected();
 
-        PostReceive();
-    }
+        var ct = new CancellationToken();
+        var filling = FillPipeAsync(ct);
+        var reading = ReadPipeAsync(ct);
 
-    internal void PostReceive()
-    {
-        var pending = _socket.ReceiveAsync(_recvArgs);
-        if (!pending)
-        {
-            OnReceived(null, _recvArgs);
-            return;
-        }
+        await Task.WhenAll(filling, reading);
     }
 
     internal void PostSend(string message)
@@ -61,20 +54,54 @@ internal class Connection
         }
     }
 
-    private void OnReceived(object? sender, SocketAsyncEventArgs e)
+    // [Producer] 소켓에서 데이터를 받아 파이프에 씀
+    private async Task FillPipeAsync(CancellationToken ct)
     {
-        if (e.BytesTransferred == 0)
+        var minimumBufferSize = 512;
+        var writer = _pipe.Writer;
+
+        while (!ct.IsCancellationRequested)
         {
-            _socket.Close();
-            _connectionHandler.OnDisconnected();
-            return;
+            var memory = writer.GetMemory(minimumBufferSize);
+            var bytesRead = await _socket.ReceiveAsync(memory, SocketFlags.None, ct);
+            if (bytesRead == 0)
+            {
+                _socket.Close();
+                _connectionHandler.OnDisconnected();
+                break;
+            }
+
+            writer.Advance(bytesRead);
+            var result = await writer.FlushAsync(ct);
+            if (result.IsCompleted || result.IsCanceled)
+            {
+                break;
+            }
         }
 
-        var buf = e.Buffer;
-        var message = Encoding.UTF8.GetString(buf);
-        _connectionHandler.OnReceived(message);
+        await writer.CompleteAsync();
+    }
 
-        PostReceive();
+    // [Consumer] 파이프에서 데이터를 읽어 패킷 조립
+    private async Task ReadPipeAsync(CancellationToken ct)
+    {
+        var reader = _pipe.Reader;
+
+        while (!ct.IsCancellationRequested)
+        {
+            var result = await reader.ReadAsync(ct);
+            var buffer = result.Buffer;
+
+            var message = Encoding.UTF8.GetString(buffer);
+            _connectionHandler.OnReceived(message);
+
+            if (result.IsCompleted)
+            {
+                break;
+            }
+        }
+
+        await reader.CompleteAsync();
     }
 
     private void OnSent(object? sender, SocketAsyncEventArgs e)

@@ -52,8 +52,8 @@ public class Session : IConnectionHandler
         _sessionHandler.OnRemovedSession(this);
     }
 
-    internal void Run()
+    internal async Task Run()
     {
-        _connection.Run();
+        await _connection.Run();
     }
 }

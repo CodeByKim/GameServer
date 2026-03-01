@@ -63,7 +63,7 @@ public abstract class Server : ISessionHandler
         var sessionId = Guid.NewGuid().ToString();
         var session = _sessionPool.Get();
         session.Initialize(sessionId, socket, this);
-        session.Run();
+        session.Run().ConfigureAwait(false);
 
         OnNewSession(session);
     }
