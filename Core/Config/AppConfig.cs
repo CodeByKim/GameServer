@@ -1,11 +1,11 @@
 ﻿namespace Core.Config;
 
-internal class AppConfig
+public class AppConfig
 {
     public ServerConfig Server { get; init; } = null!;
 }
 
-internal class ServerConfig
+public class ServerConfig
 {
     public int Port { get; init; }
 }

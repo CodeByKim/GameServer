@@ -22,7 +22,7 @@ public static class ServerLauncher
                     throw new ArgumentNullException(nameof(config));
                 }
 
-                services.AddHostedService(provider => new NetworkService(server));
+                services.AddHostedService(provider => new ServerWorker(server, config));
             })
             .Build();
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.ObjectPool;
 using Core.Connection;
 using Core.Session;
 using Core.Utils;
+using Core.Config;
 
 public abstract class Server : ISessionHandler
 {
@@ -13,16 +14,18 @@ public abstract class Server : ISessionHandler
     private ConcurrentDictionary<string, Session> _sessions;
     private ObjectPool<Session> _sessionPool;
     private CancellationTokenSource _cts;
+    private ServerConfig _config;
 
     public Server()
     {
     }
 
-    public virtual void Initialize()
+    public virtual void Initialize(ServerConfig config)
     {
+        _config = config;
+
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        var port = 3333;
-        _acceptor = new Acceptor(socket, port, this);
+        _acceptor = new Acceptor(socket, _config.Port, this);
         _sessions = new ConcurrentDictionary<string, Session>();
 
         var provider = new DefaultObjectPoolProvider();
