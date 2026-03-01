@@ -1,21 +1,30 @@
 ﻿namespace Core.Session;
 
-using System.Net.Sockets;
 using Core.Connection;
+using Core.Utils;
 
-public class Session : IConnectionHandler
+public class Session : IConnectionHandler, IPooledObject<Session>
 {
     private Connection _connection;
     private string _id;
     private ISessionHandler _sessionHandler;
 
     public string Id => _id;
+    public Session Object => this;
 
     internal Session(Connection connection, string id, ISessionHandler sessionHandler)
     {
         _connection = connection;
         _id = id;
         _sessionHandler = sessionHandler;
+    }
+
+    public void Initialize()
+    {
+    }
+
+    public void Release()
+    {
     }
 
     public void OnConnected()
@@ -40,5 +49,10 @@ public class Session : IConnectionHandler
         Console.WriteLine("[Session] OnDisconnected");
 
         _sessionHandler.OnRemovedSession(this);
+    }
+
+    internal void Run()
+    {
+        _connection.Run(this);
     }
 }

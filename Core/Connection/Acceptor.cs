@@ -45,19 +45,25 @@ internal class Acceptor
 
     private void OnAccept(object? sender, SocketAsyncEventArgs e)
     {
-        var socket = e.AcceptSocket;
-        if (socket == null)
+        if (e.SocketError != SocketError.Success)
         {
+            Console.WriteLine(e.SocketError.ToString());
+
+            e.AcceptSocket = null;
             PostAccept();
             return;
         }
 
-        Console.WriteLine("Accept New Socket...");
-        var sessionId = Guid.NewGuid().ToString();
-        var connection = new Connection(socket);
-        var session = new Session(connection, sessionId, _server);
-        connection.Run(session);
-        _server.OnNewSession(session);
+        var socket = e.AcceptSocket;
+        if (socket == null)
+        {
+            e.AcceptSocket = null;
+            PostAccept();
+            return;
+        }
+
+        _server.OnNewClientSocket(socket);
+
         e.AcceptSocket = null;
         PostAccept();
     }

@@ -1,26 +1,32 @@
 ﻿namespace Core.Server;
 
-using System.Net;
 using System.Net.Sockets;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.ObjectPool;
 using Core.Connection;
 using Core.Session;
+using Core.Utils;
 
 public abstract class Server : ISessionHandler
 {
     private Acceptor _acceptor;
     private ConcurrentDictionary<string, Session> _sessions;
+    private ObjectPool<IPooledObject<Session>> _sessionPool;
 
     public Server()
+    {
+    }
+
+    public virtual void Initialize()
     {
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         var port = 3333;
         _acceptor = new Acceptor(socket, port, this);
         _sessions = new ConcurrentDictionary<string, Session>();
-    }
 
-    public virtual void Initialize()
-    {
+        var provider = new DefaultObjectPoolProvider();
+        _sessionPool = provider.Create(new SessionPoolPolicy());
+
         Console.WriteLine("Initialize...");
     }
 
@@ -47,7 +53,21 @@ public abstract class Server : ISessionHandler
     public virtual void OnRemovedSession(Session session)
     {
         _sessions.Remove(session.Id, out var removedSession);
+        _sessionPool.Return(session);
 
         Console.WriteLine("OnRemovedSession");
+    }
+
+    internal void OnNewClientSocket(Socket socket)
+    {
+        var sessionId = Guid.NewGuid().ToString();
+        var connection = new Connection(socket);
+        var session = new Session(connection, sessionId, this);
+        session.Run();
+
+        OnNewSession(session);
+
+        //var obj = _sessionPool.Get();
+        //var session2 = obj.Object;
     }
 }
