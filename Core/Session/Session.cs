@@ -52,8 +52,8 @@ public class Session : IConnectionHandler
         _sessionHandler.OnRemovedSession(this);
     }
 
-    internal async Task Run()
+    internal async Task Run(CancellationToken token)
     {
-        await _connection.Run();
+        await _connection.Run(token);
     }
 }

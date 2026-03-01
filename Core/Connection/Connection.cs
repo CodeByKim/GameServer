@@ -30,13 +30,12 @@ internal class Connection
         _connectionHandler = handler ?? throw new ArgumentNullException(nameof(handler));
     }
 
-    internal async Task Run()
+    internal async Task Run(CancellationToken token)
     {
         _connectionHandler.OnConnected();
 
-        var ct = new CancellationToken();
-        var filling = FillPipeAsync(ct);
-        var reading = ReadPipeAsync(ct);
+        var filling = FillPipeAsync(token);
+        var reading = ReadPipeAsync(token);
 
         await Task.WhenAll(filling, reading);
     }
@@ -62,18 +61,30 @@ internal class Connection
 
         while (!ct.IsCancellationRequested)
         {
-            var memory = writer.GetMemory(minimumBufferSize);
-            var bytesRead = await _socket.ReceiveAsync(memory, SocketFlags.None, ct);
-            if (bytesRead == 0)
+            try
             {
-                _socket.Close();
-                _connectionHandler.OnDisconnected();
+                var memory = writer.GetMemory(minimumBufferSize);
+                var bytesRead = await _socket.ReceiveAsync(memory, SocketFlags.None, ct);
+                if (bytesRead == 0)
+                {
+                    _socket.Close();
+                    _connectionHandler.OnDisconnected();
+                    break;
+                }
+
+                writer.Advance(bytesRead);
+                var result = await writer.FlushAsync(ct);
+                if (result.IsCompleted || result.IsCanceled)
+                {
+                    break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("cancel by server...");
                 break;
             }
-
-            writer.Advance(bytesRead);
-            var result = await writer.FlushAsync(ct);
-            if (result.IsCompleted || result.IsCanceled)
+            catch (SocketException)
             {
                 break;
             }
@@ -89,14 +100,22 @@ internal class Connection
 
         while (!ct.IsCancellationRequested)
         {
-            var result = await reader.ReadAsync(ct);
-            var buffer = result.Buffer;
-
-            var message = Encoding.UTF8.GetString(buffer);
-            _connectionHandler.OnReceived(message);
-
-            if (result.IsCompleted)
+            try
             {
+                var result = await reader.ReadAsync(ct);
+                var buffer = result.Buffer;
+
+                var message = Encoding.UTF8.GetString(buffer);
+                _connectionHandler.OnReceived(message);
+
+                if (result.IsCompleted)
+                {
+                    break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("cancel by server...");
                 break;
             }
         }

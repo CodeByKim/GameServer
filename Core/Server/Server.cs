@@ -12,7 +12,7 @@ public abstract class Server : ISessionHandler
     private Acceptor _acceptor;
     private ConcurrentDictionary<string, Session> _sessions;
     private ObjectPool<Session> _sessionPool;
-    private TaskCompletionSource _cts;
+    private CancellationTokenSource _cts;
 
     public Server()
     {
@@ -28,18 +28,20 @@ public abstract class Server : ISessionHandler
         var provider = new DefaultObjectPoolProvider();
         _sessionPool = provider.Create(new SessionPoolPolicy());
 
-        _cts = new TaskCompletionSource();
+        _cts = new CancellationTokenSource();
 
         Console.WriteLine("Initialize...");
     }
 
-    public Task Run()
+    public async Task Run()
     {
         _acceptor.Run();
-        Console.WriteLine("Run...");
+        Console.WriteLine("Run Server...");
 
         var read = Console.ReadLine();
-        return Task.CompletedTask;
+        Console.WriteLine("Stop Server...");
+
+        _cts.Cancel();
     }
 
     public virtual void OnNewSession(Session session)
@@ -66,7 +68,7 @@ public abstract class Server : ISessionHandler
         var sessionId = Guid.NewGuid().ToString();
         var session = _sessionPool.Get();
         session.Initialize(sessionId, socket, this);
-        session.Run().ConfigureAwait(false);
+        session.Run(_cts.Token).ConfigureAwait(false);
 
         OnNewSession(session);
     }
