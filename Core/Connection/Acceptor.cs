@@ -4,6 +4,7 @@ using System.Text;
 using System.Net;
 using System.Net.Sockets;
 using Core.Session;
+using Core.Server;
 
 internal class Acceptor
 {
@@ -11,13 +12,17 @@ internal class Acceptor
     private SocketAsyncEventArgs _args;
     private IPEndPoint _endPoint;
 
-    internal Acceptor(Socket socket, int port)
+    private Server _server;
+
+    internal Acceptor(Socket socket, int port, Server server)
     {
         _socket = socket ?? throw new ArgumentNullException(nameof(socket));
         _endPoint = new IPEndPoint(IPAddress.Any, port);
 
         _args = new SocketAsyncEventArgs();
         _args.Completed += OnAccept;
+
+        _server = server;
     }
 
     internal void Run()
@@ -48,13 +53,11 @@ internal class Acceptor
         }
 
         Console.WriteLine("Accept New Socket...");
-
-        var connection = new Connection(socket);
         var sessionId = Guid.NewGuid().ToString();
-        var session = new Session(connection, sessionId);
-        connection.OnConnected(session);
-        connection.PostReceive();
-
+        var connection = new Connection(socket);
+        var session = new Session(connection, sessionId, _server);
+        connection.Run(session);
+        _server.OnNewSession(session);
         e.AcceptSocket = null;
         PostAccept();
     }

@@ -7,11 +7,15 @@ public class Session : IConnectionHandler
 {
     private Connection _connection;
     private string _id;
+    private ISessionHandler _sessionHandler;
 
-    internal Session(Connection connection, string id)
+    public string Id => _id;
+
+    internal Session(Connection connection, string id, ISessionHandler sessionHandler)
     {
         _connection = connection;
         _id = id;
+        _sessionHandler = sessionHandler;
     }
 
     public void OnConnected()
@@ -34,5 +38,7 @@ public class Session : IConnectionHandler
     public void OnDisconnected()
     {
         Console.WriteLine("[Session] OnDisconnected");
+
+        _sessionHandler.OnRemovedSession(this);
     }
 }

@@ -25,10 +25,12 @@ internal class Connection
         _connectionHandler = null!;
     }
 
-    internal void OnConnected(IConnectionHandler handler)
+    internal void Run(IConnectionHandler handler)
     {
         _connectionHandler = handler;
         _connectionHandler.OnConnected();
+
+        PostReceive();
     }
 
     internal void PostReceive()
@@ -44,12 +46,12 @@ internal class Connection
     internal void PostSend(string message)
     {
         var buf = Encoding.UTF8.GetBytes(message);
-        _sendArgs.SetBuffer(buf);
+        _sendArgs.SetBuffer(buf, 0, buf.Length);
 
         var pending = _socket.SendAsync(_sendArgs);
         if (!pending)
         {
-            OnSent(null, _recvArgs);
+            OnSent(null, _sendArgs);
             return;
         }
     }
