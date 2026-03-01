@@ -12,6 +12,7 @@ public abstract class Server : ISessionHandler
     private Acceptor _acceptor;
     private ConcurrentDictionary<string, Session> _sessions;
     private ObjectPool<Session> _sessionPool;
+    private TaskCompletionSource _cts;
 
     public Server()
     {
@@ -26,6 +27,8 @@ public abstract class Server : ISessionHandler
 
         var provider = new DefaultObjectPoolProvider();
         _sessionPool = provider.Create(new SessionPoolPolicy());
+
+        _cts = new TaskCompletionSource();
 
         Console.WriteLine("Initialize...");
     }
