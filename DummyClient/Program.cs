@@ -2,24 +2,42 @@
 
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 internal class Program
 {
-    static void Main(string[] args)
+    private static Socket Connect(string ip, int port)
     {
-        var serverIp = "127.0.0.1";
-        var serverPort = 3333;
-
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        var endPoint = new IPEndPoint(IPAddress.Parse(serverIp), serverPort);
-
+        var endPoint = new IPEndPoint(IPAddress.Parse(ip), port);
         socket.Connect(endPoint);
 
-        var recvBuffer = new byte[256];
+        return socket;
+    }
+
+    private static void Send(Socket socket, string message)
+    {
+        var buf = Encoding.UTF8.GetBytes(message);
+        socket.Send(buf);
+    }
+
+    private static string Receive(Socket socket)
+    {
+        var recvBuffer = new byte[128];
         socket.Receive(recvBuffer);
 
-        var message = System.Text.Encoding.UTF8.GetString(recvBuffer);
-        Console.WriteLine(message);
+        return Encoding.UTF8.GetString(recvBuffer);
+    }
+
+    private static void Main(string[] args)
+    {
+        var ip = "127.0.0.1";
+        var port = 3333;
+        var socket = Connect(ip, port);
+
+        Send(socket, "hello world");
+        Console.WriteLine(Receive(socket));
+        socket.Close();
 
         Console.ReadLine();
     }

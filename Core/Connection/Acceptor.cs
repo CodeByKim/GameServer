@@ -3,6 +3,7 @@
 using System.Text;
 using System.Net;
 using System.Net.Sockets;
+using Core.Session;
 
 internal class Acceptor
 {
@@ -39,11 +40,20 @@ internal class Acceptor
 
     private void OnAccept(object? sender, SocketAsyncEventArgs e)
     {
-        Console.WriteLine("Accept New Client...");
-
         var socket = e.AcceptSocket;
-        var message = Encoding.UTF8.GetBytes("hello world");
-        socket.Send(message);
+        if (socket == null)
+        {
+            PostAccept();
+            return;
+        }
+
+        Console.WriteLine("Accept New Socket...");
+
+        var connection = new Connection(socket);
+        var sessionId = Guid.NewGuid().ToString();
+        var session = new Session(connection, sessionId);
+        connection.OnConnected(session);
+        connection.PostReceive();
 
         e.AcceptSocket = null;
         PostAccept();

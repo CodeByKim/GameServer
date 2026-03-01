@@ -1,14 +1,38 @@
 ﻿namespace Core.Session;
 
+using System.Net.Sockets;
 using Core.Connection;
 
-public abstract class Session
+public class Session : IConnectionHandler
 {
     private Connection _connection;
-    private int _id;
+    private string _id;
 
-    public Session()
+    internal Session(Connection connection, string id)
     {
-        //_connection = new Connection();
+        _connection = connection;
+        _id = id;
+    }
+
+    public void OnConnected()
+    {
+        Console.WriteLine("[Session] OnConnected");
+    }
+
+    public void OnReceived(string message)
+    {
+        Console.WriteLine($"[Session] OnReceived: {message}");
+
+        _connection.PostSend(message);
+    }
+
+    public void OnSent()
+    {
+        Console.WriteLine("[Session] OnSent");
+    }
+
+    public void OnDisconnected()
+    {
+        Console.WriteLine("[Session] OnDisconnected");
     }
 }
