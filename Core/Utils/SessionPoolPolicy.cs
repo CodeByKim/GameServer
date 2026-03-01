@@ -3,17 +3,17 @@
 using Microsoft.Extensions.ObjectPool;
 using Core.Session;
 
-internal class SessionPoolPolicy : IPooledObjectPolicy<IPooledObject<Session>>
+internal class SessionPoolPolicy : IPooledObjectPolicy<Session>
 {
-    public bool Return(IPooledObject<Session> obj)
+    public bool Return(Session session)
     {
-        obj.Release();
+        session.Release();
         return true;
     }
 
-    public IPooledObject<Session> Create()
+    public Session Create()
     {
-        var session = new Session(null, "", null);
+        var session = new Session();
         return session;
     }
 }

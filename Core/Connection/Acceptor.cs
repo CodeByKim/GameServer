@@ -35,6 +35,8 @@ internal class Acceptor
 
     private void PostAccept()
     {
+        _args.AcceptSocket = null;
+
         var pending = _socket.AcceptAsync(_args);
         if (!pending)
         {
@@ -49,7 +51,6 @@ internal class Acceptor
         {
             Console.WriteLine(e.SocketError.ToString());
 
-            e.AcceptSocket = null;
             PostAccept();
             return;
         }
@@ -57,14 +58,12 @@ internal class Acceptor
         var socket = e.AcceptSocket;
         if (socket == null)
         {
-            e.AcceptSocket = null;
             PostAccept();
             return;
         }
 
         _server.OnNewClientSocket(socket);
 
-        e.AcceptSocket = null;
         PostAccept();
     }
 }

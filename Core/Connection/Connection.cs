@@ -11,9 +11,9 @@ internal class Connection
 
     private IConnectionHandler _connectionHandler;
 
-    internal Connection(Socket socket)
+    internal Connection()
     {
-        _socket = socket ?? throw new ArgumentNullException(nameof(socket));
+        _socket = null!;
 
         _recvArgs = new SocketAsyncEventArgs();
         _recvArgs.SetBuffer(new Byte[128], 0, 128);
@@ -25,9 +25,14 @@ internal class Connection
         _connectionHandler = null!;
     }
 
-    internal void Run(IConnectionHandler handler)
+    internal void Initialize(Socket socket, IConnectionHandler handler)
     {
-        _connectionHandler = handler;
+        _socket = socket ?? throw new ArgumentNullException(nameof(socket));
+        _connectionHandler = handler ?? throw new ArgumentNullException(nameof(handler));
+    }
+
+    internal void Run()
+    {
         _connectionHandler.OnConnected();
 
         PostReceive();

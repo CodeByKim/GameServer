@@ -11,7 +11,7 @@ public abstract class Server : ISessionHandler
 {
     private Acceptor _acceptor;
     private ConcurrentDictionary<string, Session> _sessions;
-    private ObjectPool<IPooledObject<Session>> _sessionPool;
+    private ObjectPool<Session> _sessionPool;
 
     public Server()
     {
@@ -61,13 +61,10 @@ public abstract class Server : ISessionHandler
     internal void OnNewClientSocket(Socket socket)
     {
         var sessionId = Guid.NewGuid().ToString();
-        var connection = new Connection(socket);
-        var session = new Session(connection, sessionId, this);
+        var session = _sessionPool.Get();
+        session.Initialize(sessionId, socket, this);
         session.Run();
 
         OnNewSession(session);
-
-        //var obj = _sessionPool.Get();
-        //var session2 = obj.Object;
     }
 }

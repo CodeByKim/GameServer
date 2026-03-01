@@ -1,29 +1,30 @@
 ﻿namespace Core.Session;
 
+using System.Net.Sockets;
 using Core.Connection;
 using Core.Utils;
 
-public class Session : IConnectionHandler, IPooledObject<Session>
+public class Session : IConnectionHandler
 {
     private Connection _connection;
-    private string _id;
     private ISessionHandler _sessionHandler;
+    private string _id;
 
     public string Id => _id;
-    public Session Object => this;
 
-    internal Session(Connection connection, string id, ISessionHandler sessionHandler)
+    internal Session()
     {
-        _connection = connection;
+        _connection = new Connection();
+    }
+
+    internal void Initialize(string id, Socket socket, ISessionHandler sessionHandler)
+    {
+        _connection.Initialize(socket, this);
         _id = id;
         _sessionHandler = sessionHandler;
     }
 
-    public void Initialize()
-    {
-    }
-
-    public void Release()
+    internal void Release()
     {
     }
 
@@ -53,6 +54,6 @@ public class Session : IConnectionHandler, IPooledObject<Session>
 
     internal void Run()
     {
-        _connection.Run(this);
+        _connection.Run();
     }
 }
