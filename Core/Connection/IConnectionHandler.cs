@@ -3,7 +3,7 @@
 internal interface IConnectionHandler
 {
     void OnConnected();
-    void OnReceived(string message);
+    void OnReceived(short packetId, byte[] packet);
     void OnSent();
     void OnDisconnected();
 }

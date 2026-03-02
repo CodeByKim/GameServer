@@ -1,12 +1,13 @@
 ﻿namespace Core.Server;
 
-using System.Net.Sockets;
-using System.Collections.Concurrent;
-using Microsoft.Extensions.ObjectPool;
+using Core.Config;
 using Core.Connection;
 using Core.Session;
 using Core.Utils;
-using Core.Config;
+using Google.Protobuf;
+using Microsoft.Extensions.ObjectPool;
+using System.Collections.Concurrent;
+using System.Net.Sockets;
 
 public abstract class Server : ISessionHandler
 {
@@ -15,6 +16,8 @@ public abstract class Server : ISessionHandler
     private ObjectPool<Session> _sessionPool;
     private CancellationTokenSource _cts;
     private ServerConfig _config;
+
+    private Dictionary<short, IMessage> _protocolFactory;
 
     public Server()
     {
@@ -32,6 +35,7 @@ public abstract class Server : ISessionHandler
         _sessionPool = provider.Create(new SessionPoolPolicy());
 
         _cts = new CancellationTokenSource();
+        _protocolFactory = new Dictionary<short, IMessage>();
 
         Console.WriteLine("Initialize...");
     }
@@ -66,6 +70,18 @@ public abstract class Server : ISessionHandler
         Console.WriteLine("OnRemovedSession");
     }
 
+    public virtual void OnReceivedPacket(Session session, short packetId, IMessage packet)
+    {
+    }
+
+    public IMessage MakePacket(short id, byte[] packet)
+    {
+        var protoPacket = _protocolFactory[id];
+        protoPacket.MergeFrom(packet);
+
+        return protoPacket;
+    }
+
     internal void OnNewClientSocket(Socket socket)
     {
         var sessionId = Guid.NewGuid().ToString();
@@ -74,5 +90,10 @@ public abstract class Server : ISessionHandler
         session.Run(_cts.Token).ConfigureAwait(false);
 
         OnNewSession(session);
+    }
+
+    protected void Register(Action<Dictionary<short, IMessage>> factory)
+    {
+        factory(_protocolFactory);
     }
 }

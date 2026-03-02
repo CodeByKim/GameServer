@@ -3,6 +3,8 @@
 using System.Text;
 using System.Net.Sockets;
 using System.IO.Pipelines;
+using Google.Protobuf;
+using System.Buffers;
 
 internal class Connection
 {
@@ -40,10 +42,9 @@ internal class Connection
         await Task.WhenAll(filling, reading);
     }
 
-    internal void PostSend(string message)
+    internal void PostSend(byte[] buffer)
     {
-        var buf = Encoding.UTF8.GetBytes(message);
-        _sendArgs.SetBuffer(buf, 0, buf.Length);
+        _sendArgs.SetBuffer(buffer, 0, buffer.Length);
 
         var pending = _socket.SendAsync(_sendArgs);
         if (!pending)
@@ -102,10 +103,9 @@ internal class Connection
             try
             {
                 var result = await reader.ReadAsync(ct);
-                var buffer = result.Buffer;
 
-                var message = Encoding.UTF8.GetString(buffer);
-                _connectionHandler.OnReceived(message);
+                var (packetId, packet) = ParsePacket(result.Buffer);
+                _connectionHandler.OnReceived(packetId, packet);
 
                 if (result.IsCompleted)
                 {
@@ -119,6 +119,26 @@ internal class Connection
         }
 
         await reader.CompleteAsync();
+    }
+
+    private (short, byte[]) ParsePacket(ReadOnlySequence<byte> buffer)
+    {
+        // 원래는 헤더부터 읽을 수 있는지 없는지 확인을 해야 하지만...
+        // 그냥 한번에 다 받았다라고 가정하고 일단은 넘어기자
+        var reader = new SequenceReader<byte>(buffer);
+        if (reader.Remaining < 4)
+        {
+            buffer = buffer.Slice(reader.Position);
+            return default;
+        }
+
+        reader.TryReadLittleEndian(out short packetId);
+        reader.TryReadLittleEndian(out short payload);
+
+        var sequence = buffer.Slice(reader.Position, payload);
+
+        buffer = buffer.Slice(reader.Position);
+        return (packetId, sequence.ToArray());
     }
 
     private void OnSent(object? sender, SocketAsyncEventArgs e)

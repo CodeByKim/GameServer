@@ -3,6 +3,23 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Google.Protobuf;
+using Google.Protobuf.Protocol;
+
+internal struct PacketHeader
+{
+    internal short Id { get; set; }
+    internal short payload { get; set; }
+
+    internal byte[] ToByteArray()
+    {
+        var array = new byte[4];
+        Array.Copy(BitConverter.GetBytes(Id), 0, array, 0, 2);
+        Array.Copy(BitConverter.GetBytes(payload), 0, array, 2, 2);
+
+        return array;
+    }
+}
 
 internal class Program
 {
@@ -15,10 +32,23 @@ internal class Program
         return socket;
     }
 
-    private static void Send(Socket socket, string message)
+    private static void Send(Socket socket,  short packetId, IMessage packet)
     {
-        var buf = Encoding.UTF8.GetBytes(message);
+        var buf = PacketToByteArray(packetId, packet);
         socket.Send(buf);
+    }
+
+    private static byte[] PacketToByteArray(short packetId, IMessage packet)
+    {
+        var header = new PacketHeader();
+        header.Id = packetId;
+        header.payload = (short)packet.CalculateSize();
+
+        var buf = new byte[4 + header.payload];
+        Array.Copy(header.ToByteArray(), 0, buf, 0, 4);
+        Array.Copy(packet.ToByteArray(), 0, buf, 4, header.payload);
+
+        return buf;
     }
 
     private static string Receive(Socket socket)
@@ -35,7 +65,10 @@ internal class Program
         var port = 3333;
         var socket = Connect(ip, port);
 
-        Send(socket, "hello world");
+        var packet = new EchoReq();
+        packet.Message = "protobuf hello world";
+        Send(socket, 1, packet);
+
         Console.WriteLine(Receive(socket));
         socket.Close();
 
