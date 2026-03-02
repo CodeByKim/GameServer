@@ -8,16 +8,16 @@ public class Session : IConnectionHandler
 {
     private Connection _connection;
     private ISessionHandler _sessionHandler;
-    private string _id;
+    private long _id;
 
-    public string Id => _id;
+    public long Id => _id;
 
     internal Session()
     {
         _connection = new Connection();
     }
 
-    internal void Initialize(string id, Socket socket, ISessionHandler sessionHandler)
+    internal void Initialize(long id, Socket socket, ISessionHandler sessionHandler)
     {
         _connection.Initialize(socket, this);
         _id = id;

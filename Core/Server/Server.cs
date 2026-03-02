@@ -12,7 +12,7 @@ using System.Net.Sockets;
 public abstract class Server : ISessionHandler
 {
     private Acceptor _acceptor;
-    private ConcurrentDictionary<string, Session> _sessions;
+    private ConcurrentDictionary<long, Session> _sessions;
     private ObjectPool<Session> _sessionPool;
     private CancellationTokenSource _cts;
     private ServerConfig _config;
@@ -29,7 +29,7 @@ public abstract class Server : ISessionHandler
 
         var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         _acceptor = new Acceptor(socket, _config.Port, this);
-        _sessions = new ConcurrentDictionary<string, Session>();
+        _sessions = new ConcurrentDictionary<long, Session>();
 
         var provider = new DefaultObjectPoolProvider();
         _sessionPool = provider.Create(new SessionPoolPolicy());
@@ -84,7 +84,7 @@ public abstract class Server : ISessionHandler
 
     internal void OnNewClientSocket(Socket socket)
     {
-        var sessionId = Guid.NewGuid().ToString();
+        var sessionId = Uuid.Create();
         var session = _sessionPool.Get();
         session.Initialize(sessionId, socket, this);
         session.Run(_cts.Token).ConfigureAwait(false);
