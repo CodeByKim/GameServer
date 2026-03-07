@@ -104,8 +104,12 @@ internal class Connection
             {
                 var result = await reader.ReadAsync(ct);
 
-                var (packetId, packet) = ParsePacket(result.Buffer);
-                _connectionHandler.OnReceived(packetId, packet);
+                if (!TryParsePacket(result.Buffer, out var header))
+                {
+                    break;
+                }
+
+                _connectionHandler.OnReceived(header.Item1, header.Item2);
 
                 if (result.IsCompleted)
                 {
@@ -121,15 +125,17 @@ internal class Connection
         await reader.CompleteAsync();
     }
 
-    private (short, byte[]) ParsePacket(ReadOnlySequence<byte> buffer)
+    private bool TryParsePacket(ReadOnlySequence<byte> buffer, out (short, byte[]) header)
     {
+        header = default;
+
         // 원래는 헤더부터 읽을 수 있는지 없는지 확인을 해야 하지만...
         // 그냥 한번에 다 받았다라고 가정하고 일단은 넘어기자
         var reader = new SequenceReader<byte>(buffer);
         if (reader.Remaining < 4)
         {
             buffer = buffer.Slice(reader.Position);
-            return default;
+            return false;
         }
 
         reader.TryReadLittleEndian(out short packetId);
@@ -138,7 +144,8 @@ internal class Connection
         var sequence = buffer.Slice(reader.Position, payload);
 
         buffer = buffer.Slice(reader.Position);
-        return (packetId, sequence.ToArray());
+        header = (packetId, sequence.ToArray());
+        return true;
     }
 
     private void OnSent(object? sender, SocketAsyncEventArgs e)
