@@ -65,13 +65,13 @@ internal class Connection
     private async Task FillPipeAsync(CancellationToken ct)
     {
         var minimumBufferSize = 512;
-        var writer = _pipe.Writer;
+        var pipeWriter = _pipe.Writer;
 
         while (!ct.IsCancellationRequested)
         {
             try
             {
-                var memory = writer.GetMemory(minimumBufferSize);
+                var memory = pipeWriter.GetMemory(minimumBufferSize);
                 var bytesRead = await _socket.ReceiveAsync(memory, SocketFlags.None, ct);
                 if (bytesRead == 0)
                 {
@@ -80,8 +80,8 @@ internal class Connection
                     break;
                 }
 
-                writer.Advance(bytesRead);
-                var result = await writer.FlushAsync(ct);
+                pipeWriter.Advance(bytesRead);
+                var result = await pipeWriter.FlushAsync(ct);
                 if (result.IsCompleted || result.IsCanceled)
                 {
                     break;
@@ -97,19 +97,19 @@ internal class Connection
             }
         }
 
-        await writer.CompleteAsync();
+        await pipeWriter.CompleteAsync();
     }
 
     // [Consumer] 파이프에서 데이터를 읽어 패킷 조립
     private async Task ReadPipeAsync(CancellationToken ct)
     {
-        var reader = _pipe.Reader;
+        var pipeReader = _pipe.Reader;
 
         try
         {
             while (true)
             {
-                var result = await reader.ReadAsync(ct);
+                var result = await pipeReader.ReadAsync(ct);
                 var buffer = result.Buffer;
 
                 /*
@@ -165,7 +165,7 @@ internal class Connection
                 }
                 finally
                 {
-                    reader.AdvanceTo(consumed, examined);
+                    pipeReader.AdvanceTo(consumed, examined);
                 }
             }
         }
@@ -174,7 +174,7 @@ internal class Connection
         }
         finally
         {
-            await reader.CompleteAsync();
+            await pipeReader.CompleteAsync();
         }
     }
 
